@@ -3,7 +3,7 @@ require 'pathname'
 
 class Turbulence
   module Scm
-    class Perforce 
+    class Perforce
       class << self
         def log_command(commit_range = "")
           full_log = ""
@@ -33,14 +33,17 @@ class Turbulence
         end
 
         def depot_to_local(depot_file)
-          abs_path = extract_clientfile_from_fstat_of(depot_file) 
+          abs_path = extract_clientfile_from_fstat_of(depot_file)
+          return abs_path if abs_path.empty?
           Pathname.new(abs_path).relative_path_from(Pathname.new(FileUtils.pwd)).to_s
         end
 
         def extract_clientfile_from_fstat_of(depot_file)
-          p4_fstat(depot_file).each_line.select {
+          cf = p4_fstat(depot_file).each_line.select {
             |line| line =~ /clientFile/
-          }[0].split(" ")[2].tr("\\","/")
+          }
+          return "" if cf.empty?
+          return cf[0].split(" ")[2].tr("\\","/")
         end
 
         def files_per_change(change)
@@ -49,6 +52,7 @@ class Turbulence
           describe_output.each_index do |index|
             if describe_output[index].start_with?("====")
               fn = filename_from_describe(describe_output, index)
+              next if fn.empty?
               churn = sum_of_changes(describe_output[index .. index + 4].join("\n"))
               map << [churn,fn]
             end
@@ -64,7 +68,7 @@ class Turbulence
           "#{arr[0]}\t0\t#{arr[1]}\n"
         end
 
-        def sum_of_changes(p4_describe_output) 
+        def sum_of_changes(p4_describe_output)
           churn = 0
           p4_describe_output.each_line do |line|
             next unless line =~ /(add|deleted|changed) .* (\d+) lines/
